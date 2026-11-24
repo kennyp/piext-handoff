@@ -56,6 +56,7 @@ export function fakePi(cwd: string) {
     newSession: async (o: any) => {
       newSessions.push(o);
       if (state.newSessionModel) state.model = state.newSessionModel;
+      branch.length = 0;
       state.thinking = "off";
       await fire("session_start", { reason: "new" });
       const next = { sendUserMessage: async (t: string) => userMessages.push({ text: t, options: { replacement: true } }) };

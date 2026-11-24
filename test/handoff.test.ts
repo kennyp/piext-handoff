@@ -124,7 +124,23 @@ test("no model change when the new session already has it", async () => {
   await f.command("handoff", "go");
   assert.equal(f.state.setModelCalls.length, 0);
   assert.equal(f.state.thinking, "high");
-  assert.equal(f.statuses.handoff, "handoff: done");
+  assert.equal(f.statuses.handoff, undefined); // the new session starts idle
+});
+
+test("a session started by a handoff doesn't hand off again before your next prompt", async () => {
+  const { f } = await started(`[handoff]\nenabled = true\nthreshold = 0.01\nturns = 1\n`);
+  await f.tool("handoff_ready", { instructions: "Next." });
+  await f.command("handoff", "go");
+  const before = f.sent.length;
+  f.state.usage = { percent: 50 };
+  f.prompt("# Handoff from a previous session");
+  await f.fire("turn_end");
+  await f.fire("agent_end");
+  assert.equal(await f.fire("session_before_compact", { reason: "threshold" }), undefined);
+  assert.equal(f.sent.length, before);
+  f.prompt("now something of mine");
+  await f.fire("turn_end");
+  assert.equal(f.sent.length, before + 1);
 });
 
 test("turns, disabled, and /handoff now", async () => {

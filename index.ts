@@ -35,6 +35,8 @@ interface State {
   reminded: boolean;
   /** The next session's first message, once the agent (or you) wrote it. */
   prompt?: string;
+  /** This session began with a handoff prompt. */
+  fromHandoff?: boolean;
 }
 
 const fresh = (): State => ({ phase: "idle", runs: 0, reminded: false });
@@ -64,6 +66,10 @@ export default function (pi: ExtensionAPI, opts: Options = {}) {
     }
   };
   const userTurns = (ctx: ExtensionContext) => entries(ctx).filter((e: any) => e?.type === "message" && e.message?.role === "user").length;
+  // A session that began with a handoff waits for a prompt of yours before
+  // handing off by itself: its first prompt alone may be past the threshold,
+  // and it would hand off again and again.
+  const automatic = (ctx: ExtensionContext, s: Settings) => s.enabled && !(state.fromHandoff && userTurns(ctx) < 2);
 
   /** ask tells the agent to get ready. */
   const ask = (ctx: ExtensionContext, why: Reason, detail = "", note?: string) => {
@@ -85,6 +91,7 @@ export default function (pi: ExtensionAPI, opts: Options = {}) {
       const want = mail.model && ctx.modelRegistry.find(mail.model.provider, mail.model.id);
       if (want && (ctx.model?.provider !== want.provider || ctx.model?.id !== want.id)) await pi.setModel(want);
       if (mail.thinking) pi.setThinkingLevel(mail.thinking as any);
+      save({ ...fresh(), fromHandoff: true });
     }
     status(ctx);
     pi.events.emit("piext:hello", { name: NAME, version: VERSION, provides: ["handoff"] });
@@ -104,14 +111,14 @@ export default function (pi: ExtensionAPI, opts: Options = {}) {
     if (state.phase !== "idle") return;
     const s = eff(ctx).settings;
     const u = ctx.getContextUsage();
-    if (s.enabled && s.threshold > 0 && u?.percent != null && u.percent / 100 >= s.threshold) ask(ctx, "threshold", `${Math.round(u.percent)}%`);
+    if (automatic(ctx, s) && s.threshold > 0 && u?.percent != null && u.percent / 100 >= s.threshold) ask(ctx, "threshold", `${Math.round(u.percent)}%`);
   });
 
   pi.on("agent_end", async (_e, ctx) => {
     const s = eff(ctx).settings;
     if (state.phase === "idle") {
       const n = userTurns(ctx);
-      if (s.enabled && s.turns > 0 && n >= s.turns) ask(ctx, "turns", String(n));
+      if (automatic(ctx, s) && s.turns > 0 && n >= s.turns) ask(ctx, "turns", String(n));
       return;
     }
     if (state.phase !== "asked") return;
@@ -130,7 +137,7 @@ export default function (pi: ExtensionAPI, opts: Options = {}) {
     // Only pi's own compaction: /compact is yours, and an overflow can't wait.
     if (event?.reason !== "threshold") return;
     const s = eff(ctx).settings;
-    if (!s.enabled || !s.on_compact || state.phase === "gaveup" || state.phase === "done") return;
+    if (!automatic(ctx, s) || !s.on_compact || state.phase === "gaveup" || state.phase === "done") return;
     if (state.phase === "idle") ask(ctx, "compact");
     return { cancel: true };
   });
@@ -306,7 +313,7 @@ export default function (pi: ExtensionAPI, opts: Options = {}) {
         case "go":
           return go(ctx);
         case "cancel":
-          save(fresh());
+          save({ ...fresh(), fromHandoff: state.fromHandoff });
           status(ctx);
           return say("Handoff cancelled.");
         case "on":
