@@ -1,0 +1,3 @@
+[submodule "vendor/piext-config"]
+	path = vendor/piext-config
+	url = https://github.com/kennyp/piext-config.git
