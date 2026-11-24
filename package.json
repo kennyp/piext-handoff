@@ -1,6 +1,6 @@
 {
   "name": "@kennyp/piext-handoff",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Hand a pi session off to a fresh one before it runs out of room: the agent writes the instructions, the new session (same folder, same model) starts with them",
   "keywords": ["pi-package", "piext"],
   "license": "MIT",

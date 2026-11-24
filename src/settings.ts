@@ -7,9 +7,9 @@ import { load, sessionTable, specificity, type Loaded, type Scope } from "../ven
 export const NS = "handoff";
 
 export type Mode = "auto" | "ask";
-export type Launcher = "replace" | "loop-tab" | "file";
+export type CloseOld = "yes" | "no" | "ask";
 export const MODES: Mode[] = ["auto", "ask"];
-export const LAUNCHERS: Launcher[] = ["replace", "loop-tab", "file"];
+export const CLOSE_OLD: CloseOld[] = ["yes", "no", "ask"];
 
 /** The keys a general or model table can set. */
 export interface Settings {
@@ -23,10 +23,10 @@ export interface Settings {
   on_compact: boolean;
   /** auto: go when the agent's ready; ask: show you the prompt first. */
   mode: Mode;
-  /** replace: a new session in this pi; loop-tab: a new Loop tab; file: write the prompt down. */
-  launcher: Launcher;
-  /** loop-tab: close this Loop session after the new one starts. */
-  close_old: boolean;
+  /** Launchers to try, in order: names, "/abs", "./rel" or "~/x" paths; none: the one that fits. */
+  launcher: string[];
+  /** After the new session starts: close this one (yes), leave it (no), or ask you. */
+  close_old: CloseOld;
   /** Prompts to wait for handoff_ready before reminding the agent (once). */
   remind_after: number;
 }
@@ -39,8 +39,8 @@ export const defaults = (): Settings => ({
   turns: 0,
   on_compact: true,
   mode: "auto",
-  launcher: "replace",
-  close_old: false,
+  launcher: [],
+  close_old: "ask",
   remind_after: 3,
 });
 
@@ -104,8 +104,11 @@ function check(s: Settings, where: string, errors: string[]): Settings {
   fix("turns", Number.isInteger(s.turns) && s.turns >= 0, "a whole number (0: off)");
   fix("on_compact", typeof s.on_compact === "boolean", "true or false");
   fix("mode", MODES.includes(s.mode), MODES.join(" or "));
-  fix("launcher", LAUNCHERS.includes(s.launcher), LAUNCHERS.join(", "));
-  fix("close_old", typeof s.close_old === "boolean", "true or false");
+  // One launcher, or a list; true/false for close_old as yes/no.
+  if (typeof s.launcher === "string") s.launcher = [s.launcher];
+  fix("launcher", Array.isArray(s.launcher) && s.launcher.every((x) => typeof x === "string" && x !== ""), "a launcher, or a list of them");
+  if (typeof s.close_old === "boolean") s.close_old = s.close_old ? "yes" : "no";
+  fix("close_old", CLOSE_OLD.includes(s.close_old), CLOSE_OLD.join(", "));
   fix("remind_after", Number.isInteger(s.remind_after) && s.remind_after >= 0, "a whole number");
   return s;
 }
