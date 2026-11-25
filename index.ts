@@ -8,13 +8,13 @@ import { Type } from "typebox";
 import { execFileSync } from "node:child_process";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { clearSession, set as setConfig, setSession } from "./vendor/piext-config/index.ts";
+import { clearSession, configDir, set as setConfig, setSession } from "./vendor/piext-config/index.ts";
 import { KEYS, modelName, NS, parseValue, resolve, saveKey, sessionOverrides, type Effective, type ModelRef, type Settings } from "./src/settings.ts";
 import { buildPrompt, MAX_INSTRUCTIONS, prepareText, reasonText, remindText, type Reason, type Task } from "./src/prompt.ts";
 import { CLOSE_UNSUPPORTED, launchEnv, openInEditor, pick, run as defaultRun, spawnDetached, writePrompt, type Launcher, type Pick, type Run, type Spawn } from "./src/launch.ts";
 
 export const NAME = "piext-handoff";
-export const VERSION = "0.2.0";
+export const VERSION = "0.3.0";
 const STATE = "piext-handoff";
 /** How every handoff prompt starts (src/prompt.ts); a session that begins with it came from one. */
 const MARK = "# Handoff from a previous session";
@@ -85,7 +85,7 @@ export default function (pi: ExtensionAPI, opts: Options = {}) {
     const e = eff(ctx);
     // "./x" is relative to the config that set it.
     const scope = e.sources.launcher.scope;
-    const base = scope === "global" ? join(home, ".config", "piext") : scope === "local" ? join(ctx.cwd, ".pi") : ctx.cwd;
+    const base = scope === "global" ? configDir({ home }) : scope === "local" ? join(ctx.cwd, ".pi") : ctx.cwd;
     return pick({ specs: e.settings.launcher, base: () => base, env, home, run: exec });
   };
 
@@ -270,7 +270,7 @@ export default function (pi: ExtensionAPI, opts: Options = {}) {
       const vars = launchEnv(
         {
           cwd: ctx.cwd,
-          promptFile: writePrompt(prompt, ctx.sessionManager.getSessionId?.() ?? "session", new Date(), opts.promptDir),
+          promptFile: writePrompt(prompt, ctx.sessionManager.getSessionId?.() ?? "session", new Date(), opts.promptDir, home),
           model: model ? modelName(model) : "",
           thinking: String(pi.getThinkingLevel() ?? ""),
           oldSession: ctx.sessionManager.getSessionId?.(),

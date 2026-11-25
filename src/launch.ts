@@ -1,12 +1,13 @@
 // Starting the next session through a launcher: a small executable that
 // answers `active` (usable from this session?), `start` (open the new
 // session) and `close` (close this one). The built-ins are in launchers/;
-// yours go in ~/.config/piext/handoff/launchers/, or anywhere by path.
+// yours go in ~/.config/piext/handoff/launchers/ ($XDG_CONFIG_HOME), or anywhere by path.
 import { execFile, spawn } from "node:child_process";
 import { accessSync, constants, mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { dirname, isAbsolute, join, resolve as resolvePath } from "node:path";
 import { fileURLToPath } from "node:url";
+import { configDir, dirs } from "../vendor/piext-config/index.ts";
 
 export const BUILTIN_DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "launchers");
 /** Never picked on their own: they don't open a session. */
@@ -34,7 +35,7 @@ export interface Launcher {
   path: string;
 }
 
-export const userDir = (home = homedir()) => join(home, ".config", "piext", "handoff", "launchers");
+export const userDir = (home = homedir()) => join(configDir({ home }), "handoff", "launchers");
 
 const executable = (p: string) => {
   try {
@@ -140,8 +141,13 @@ export function launchEnv(h: Handoff, env: NodeJS.ProcessEnv): NodeJS.ProcessEnv
   };
 }
 
-/** promptFile writes the prompt where launchers can read it, and returns the path. */
-export function writePrompt(prompt: string, id = "session", now = new Date(), dir = join(tmpdir(), "piext-handoff")): string {
+/**
+ * writePrompt writes the prompt where launchers can read it, and returns the
+ * path: by default in the old session's own folder (piext-config's session
+ * dir), else the temp folder.
+ */
+export function writePrompt(prompt: string, id = "session", now = new Date(), dir?: string, home = homedir()): string {
+  dir ??= /^[a-z0-9][a-z0-9._-]*$/.test(id) && id !== "session" ? dirs("handoff", { home, sessionId: id }).session! : join(tmpdir(), "piext-handoff");
   mkdirSync(dir, { recursive: true });
   const path = join(dir, `${id}-${now.toISOString().replace(/[:.]/g, "-")}.md`);
   writeFileSync(path, prompt);

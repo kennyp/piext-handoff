@@ -74,7 +74,7 @@ The handoff comes in as environment variables:
 | | |
 |---|---|
 | `HANDOFF_CWD` | the folder |
-| `HANDOFF_PROMPT_FILE` | the first message, in a file |
+| `HANDOFF_PROMPT_FILE` | the first message, in a file (in `~/.local/state/piext/sessions/<old session>/handoff/`) |
 | `HANDOFF_MODEL`, `HANDOFF_THINKING` | `provider/id` and the thinking level |
 | `HANDOFF_PI_CMD` | `pi --model … --thinking … @<prompt file>`, quoted for `sh -c` |
 | `HANDOFF_OLD_SESSION`, `HANDOFF_OLD_SESSION_FILE` | this session's id and file |

@@ -6,7 +6,7 @@ import { basename, join } from "node:path";
 import ext from "../index.ts";
 import { modelMatch, pickModel, resolve, saveKey } from "../src/settings.ts";
 import { buildPrompt } from "../src/prompt.ts";
-import { BUILTIN_DIR, editorCommand, known, launchEnv, locate, pick, piCommand, run, userDir, type Run } from "../src/launch.ts";
+import { BUILTIN_DIR, editorCommand, known, launchEnv, locate, pick, piCommand, run, userDir, writePrompt, type Run } from "../src/launch.ts";
 import { fakePi } from "./fakepi.ts";
 
 const opus = { provider: "bifrost", id: "anthropic/claude-opus-5-5" };
@@ -421,4 +421,13 @@ test("off unless a config turns it on", async () => {
   assert.equal(await f.fire("session_before_compact", { reason: "threshold" }), undefined);
   assert.equal(f.sent.length, 0);
   assert.equal(f.notes.length, 0);
+});
+
+test("the prompt file goes in the old session's piext folder", () => {
+  const home = mkdtempSync(join(tmpdir(), "handoff-home-"));
+  const p = writePrompt("hi", "01abc", new Date(0), undefined, home);
+  assert.ok(p.startsWith(join(home, ".local/state/piext/sessions/01abc/handoff/")), p);
+  assert.equal(readFileSync(p, "utf8"), "hi");
+  // No session id: the temp folder.
+  assert.ok(writePrompt("x", "session", new Date(0), undefined, home).startsWith(join(tmpdir(), "piext-handoff")));
 });
